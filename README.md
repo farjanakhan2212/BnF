@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Beauty n Fashion by Shimu Khan: Online Shop
 
 HTML + CSS + JavaScript website. Customer order dey, apni admin panel theke shob dekhen. Hosting: GitHub Pages (free). Database: Firebase (free tier).
@@ -89,3 +90,7 @@ HTML + CSS + JavaScript website. Customer order dey, apni admin panel theke shob
 - Customer order tracking page
 - Customer er SMS/email notification
 - Coupon / discount code
+=======
+# BnF
+https://farjanakhan2212.github.io/BnF/
+>>>>>>> 44c288531fa8970765ac620f53946c5ba31c4726
