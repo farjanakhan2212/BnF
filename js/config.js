@@ -19,6 +19,7 @@ export const SHOP = {
   address: "188/1 North Ibrahimpur, Dhaka, Bangladesh",
 
   // Messenger: use your page username, e.g. https://m.me/beautynfashionbyshimukhan
+  MESSENGER_PAGE_URL: "https://m.me/YOUR_PAGE_USERNAME",
   messengerLink: "https://m.me/YOUR_PAGE_USERNAME",
 
   // bKash number customers outside Dhaka pay to

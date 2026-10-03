@@ -81,11 +81,13 @@ function renderGrid() {
       const left = stockLeft(p);
       const ok = available(p);
       const deal = p.deal && p.deal.qty > 1 ? `<span class="deal">${p.deal.qty} for ${money(p.deal.price)}</span>` : "";
+      const expiryHtml = p.expiry ? `<p class="item-expiry">Expiry: ${esc(p.expiry)}</p>` : "";
       return `<article class="item">
         <div class="item-img"><img src="${esc(imgSrc(p))}" alt="${esc(p.name)}" loading="lazy" width="400" height="500" data-ph="${esc(placeholderImg(p))}"></div>
         ${p.origin ? `<p class="item-origin">Imported from ${esc(p.origin)}</p>` : ""}
         <h3>${esc(p.name)}</h3>
         ${p.size ? `<p class="item-size">${esc(p.size)}</p>` : ""}
+        ${expiryHtml}
         <p class="item-desc">${esc(p.description || "")}</p>
         ${ok && left <= 3 ? `<p class="low">Only ${left} left</p>` : ""}
         <div class="item-foot">
@@ -327,7 +329,7 @@ function showDone(order) {
     <p class="order-no">${esc(order.orderNo)}</p>
     <p>${
       order.paymentMethod === "cod"
-        ? `We will call you to confirm. Keep <strong>${money(order.total)}</strong> ready in cash for delivery.`
+        ? `We will send you a confirmation message through Messenger. Keep <strong>${money(order.total)}</strong> ready in cash for delivery.`
         : `We will check your bKash payment and then ship by ${esc(SHOP.courier)}.`
     }</p>
     <p>Send this order to us on Messenger so we can confirm faster:</p>

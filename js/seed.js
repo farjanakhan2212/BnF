@@ -12,13 +12,13 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "kojiesan-soap-100", name: "Kojie San Skin Lightening Soap", brand: "Kojie San", category: "Skin care",
-    origin: "Philippines", size: "100g", price: 0, deal: null, stock: 0, expiry: "21/10/2027",
-    description: "Skin lightening soap bar. Dermatologically tested, as printed on the pack.",
-    image: "images/products/kojie-soap.jpg", active: false, sort: 11,
+    origin: "Philippines", size: "100g", price: 400, deal: null, stock: 10, expiry: "21/10/2027",
+    description: "Classic skin lightening soap bar. Dermatologically tested, as printed on the pack.",
+    image: "images/products/kojie-soap100.png", active: true, sort: 11,
   },
   {
     id: "kojiesan-cream-30", name: "Kojie San Skin Lightening Face Cream", brand: "Kojie San", category: "Skin care",
-    origin: "Philippines", size: "30g", price: 600, deal: null, stock: 6, expiry: "24/2/2027",
+    origin: "Philippines", size: "30g", price: 600, deal: null, stock: 6, expiry: "",
     description: "Face cream with HydroMoist. The pack says it lightens, restores and moisturizes skin.",
     image: "images/products/kojie-cream.jpg", active: true, sort: 20,
   },
@@ -42,9 +42,9 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "silka-soap-90", name: "Silka Papaya Whitening Herbal Soap", brand: "Silka", category: "Skin care",
-    origin: "Philippines", size: "90g", price: 0, deal: null, stock: 7, expiry: "10/2027",
-    description: "Papaya herbal soap enriched with Vitamin E. Dermatologist tested, as printed on the pack.",
-    image: "images/products/silka-soap90.jpg", active: false, sort: 41,
+    origin: "Philippines", size: "90g", price: 350, deal: null, stock: 7, expiry: "10/2027",
+    description: "Papaya herbal soap enriched with Vitamin E. Dermatologist tested, as printed on the pack. 100% original, directly imported.",
+    image: "images/products/silka-soap90.jpg", active: true, sort: 41,
   },
   {
     id: "silka-lotion-200", name: "Silka Papaya Whitening Lotion", brand: "Silka", category: "Skin care",
@@ -66,7 +66,7 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "garnier-micellar-vitc-125", name: "Garnier Micellar Cleansing Water Vitamin C", brand: "Garnier", category: "Skin care",
-    origin: "", size: "125ml", price: 550, deal: null, stock: 1, expiry: "6/2028",
+    origin: "", size: "125ml", price: 550, deal: null, stock: 1, expiry: "06/2028",
     description: "Dull, tired, uneven skin tone এর জন্য ভালো। যাদের মুখ নিস্তেজ লাগে, ব্রাইট দেখাতে চান তাদের জন্য উপযোগী। Normal to combination skin এ ভালো মানায়। No rinse off, no perfume, no alcohol.",
     image: "images/products/garnier.webp", active: true, sort: 70,
   },
