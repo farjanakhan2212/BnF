@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Beauty n Fashion by Shimu Khan | Imported skincare and beauty, Dhaka</title>
+  <meta name="description"
+    content="Authentic beauty and skincare products imported from the Philippines, Thailand, Malaysia and Singapore. Order online. Cash on delivery in Dhaka, courier delivery across Bangladesh.">
+  <link rel="canonical" href="https://YOUR_USERNAME.github.io/YOUR_REPO/">
+  <meta name="theme-color" content="#7C3AED">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Beauty n Fashion by Shimu Khan">
+  <meta property="og:description"
+    content="Authentic beauty and skincare products imported from the Philippines, Thailand, Malaysia and Singapore.">
+  <meta property="og:image" content="images/logo.jpg">
+  <link rel="icon" href="images/logo-mark.jpg">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "name": "Beauty n Fashion by Shimu Khan",
+    "description": "Authentic beauty and skincare products imported from the Philippines, Thailand, Malaysia and Singapore.",
+    "image": "images/logo.jpg",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "188/1 North Ibrahimpur",
+      "addressLocality": "Dhaka",
+      "addressCountry": "BD"
+    },
+    "sameAs": ["https://www.facebook.com/share/18hXL3SPfn/"]
+  }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Allura&family=Cormorant+Garamond:wght@500;600;700&family=Hind+Siliguri:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <a class="skip" href="#shop">Skip to products</a>
+
+  <header class="site-head">
+    <a class="brand" href="./" aria-label="Beauty n Fashion by Shimu Khan, home">
+      <img src="images/logo-mark.jpg" alt="" width="44" height="46">
+      <span class="brand-text">
+        <span class="brand-name">Beauty &amp; Fashion</span>
+        <span class="brand-script">by Shimu Khan</span>
+      </span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#shop">Shop</a>
+      <a href="#ordering">How ordering works</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <button class="cart-btn" id="open-cart" type="button" aria-label="Open cart">
+      Cart <span class="cart-count" id="cart-count">0</span>
+    </button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Skincare and beauty, imported by us and delivered to your door.</h1>
+        <p class="lede" id="tagline"></p>
+        <a class="btn btn-primary" href="#shop">Shop products</a>
+      </div>
+      <div class="stamps" id="stamps" role="group" aria-label="Filter by country of origin"></div>
+    </section>
+
+    <section class="shop" id="shop" aria-labelledby="shop-title">
+      <div class="shop-head">
+        <h2 id="shop-title">Our products</h2>
+        <div class="tools">
+          <label class="search">
+            <span class="sr">Search products</span>
+            <input id="search" type="search" placeholder="Search by name or brand" autocomplete="off">
+          </label>
+          <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+        </div>
+      </div>
+      <p class="demo-note" id="demo-note" hidden>Demo mode: sample products. Orders are saved only in this browser until
+        Firebase is connected.</p>
+      <div class="grid" id="grid" aria-live="polite"></div>
+    </section>
+
+    <section class="ordering" id="ordering" aria-labelledby="ordering-title">
+      <h2 id="ordering-title">How ordering works</h2>
+      <div class="ordering-cols">
+        <div>
+          <h3>Inside Dhaka City</h3>
+          <p>Pay in cash when your order arrives.</p>
+          <p class="fee" id="fee-inside"></p>
+        </div>
+        <div>
+          <h3>Outside Dhaka City</h3>
+          <p>Send the full amount by bKash first. We ship by <span id="courier-name"></span> after we confirm your
+            payment.</p>
+          <p class="fee" id="fee-outside"></p>
+        </div>
+        <div>
+          <h3>Questions before you order?</h3>
+          <p>Message us on Messenger. We reply with stock and delivery time.</p>
+          <a class="btn btn-ghost" data-messenger href="#" target="_blank" rel="noopener">Message us</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot" id="contact">
+    <img src="images/logo.jpg" alt="Beauty and Fashion by Shimu Khan logo" width="120" height="120">
+    <div>
+      <p class="foot-name">Beauty n Fashion by Shimu Khan</p>
+      <p id="foot-address"></p>
+      <p><a data-messenger href="#" target="_blank" rel="noopener">Messenger</a> or <a
+          href="https://www.facebook.com/share/18hXL3SPfn/" target="_blank" rel="noopener">our Facebook page</a></p>
+    </div>
+  </footer>
+
+  <a class="fab" data-messenger href="#" target="_blank" rel="noopener" aria-label="Message us on Messenger">Message
+    us</a>
+
+  <!-- Cart drawer -->
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="drawer" id="drawer" aria-label="Cart" aria-hidden="true" tabindex="-1">
+    <div class="drawer-head">
+      <h2>Your cart</h2>
+      <button type="button" class="icon-btn" id="close-cart" aria-label="Close cart">Close</button>
+    </div>
+    <div class="drawer-body" id="cart-body"></div>
+    <div class="drawer-foot" id="cart-foot"></div>
+  </aside>
+
+  <!-- Checkout -->
+  <dialog id="checkout" aria-labelledby="checkout-title">
+    <div id="checkout-form-wrap">
+      <div class="dlg-head">
+        <h2 id="checkout-title">Your details</h2>
+        <button type="button" class="icon-btn" data-close-checkout aria-label="Close">Close</button>
+      </div>
+      <form id="order-form" novalidate>
+        <div class="field">
+          <label for="f-name">Full name</label>
+          <input id="f-name" name="name" autocomplete="name" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="f-phone">Mobile number</label>
+          <input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="01XXXXXXXXX"
+            required>
+        </div>
+        <div class="field">
+          <label for="f-district">District</label>
+          <select id="f-district" name="district" required></select>
+        </div>
+        <div class="field">
+          <label for="f-area">Thana / Upazila</label>
+          <input id="f-area" name="area" maxlength="80" autocomplete="address-level2">
+        </div>
+        <div class="field">
+          <label for="f-address">Full address</label>
+          <textarea id="f-address" name="address" rows="3" maxlength="400" autocomplete="street-address"
+            placeholder="House, road, area" required></textarea>
+        </div>
+        <div class="field">
+          <label for="f-note">Note for us (optional)</label>
+          <textarea id="f-note" name="note" rows="2" maxlength="300"></textarea>
+        </div>
+        <div class="field hp" aria-hidden="true">
+          <label for="f-website">Leave this empty</label>
+          <input id="f-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="pay-box" id="pay-box"></div>
+
+        <div class="sum" id="order-sum"></div>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" id="place-order" type="submit">Place order</button>
+      </form>
+    </div>
+
+    <div id="checkout-done" hidden></div>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

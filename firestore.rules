@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Put YOUR admin user's UID here (Firebase console > Authentication > Users > User UID)
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'ADMIN_UID_HERE';
+    }
+
+    // Anyone can read products. Only the admin can change them.
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Customers can create an order (once) but can never read, change or delete any order.
+    // Only the admin can read and update. Nobody can delete, so order history stays.
+    match /orders/{id} {
+      allow create: if validOrder(request.resource.data) && id == request.resource.data.orderNo;
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    function validOrder(o) {
+      return o.keys().hasOnly(['orderNo','createdAt','status','paymentStatus','zone','paymentMethod','courier',
+                               'customer','items','subtotal','deliveryCharge','total','source','bkash'])
+        && o.keys().hasAll(['orderNo','createdAt','status','paymentStatus','zone','paymentMethod','customer','items','subtotal','deliveryCharge','total'])
+        && o.orderNo is string && o.orderNo.size() <= 20
+        && o.createdAt == request.time
+        && o.status == 'pending'
+        && o.paymentStatus == 'unpaid'
+        && o.zone in ['inside', 'outside']
+        && ((o.zone == 'inside' && o.paymentMethod == 'cod')
+            || (o.zone == 'outside' && o.paymentMethod == 'bkash' && o.bkash.trxId is string && o.bkash.trxId.size() >= 6 && o.bkash.trxId.size() <= 30))
+        && o.customer.name is string && o.customer.name.size() >= 2 && o.customer.name.size() <= 100
+        && o.customer.phone.matches('^01[3-9][0-9]{8}$')
+        && o.customer.address is string && o.customer.address.size() >= 8 && o.customer.address.size() <= 400
+        && o.customer.district is string && o.customer.district.size() <= 60
+        && o.items is list && o.items.size() > 0 && o.items.size() <= 30
+        && o.subtotal is number && o.deliveryCharge is number
+        && o.total is number && o.total > 0 && o.total < 500000
+        && o.total == o.subtotal + o.deliveryCharge;
+    }
+  }
+}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin | Beauty n Fashion by Shimu Khan</title>
+  <link rel="icon" href="images/logo-mark.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Hind+Siliguri:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin">
+  <div class="a-wrap">
+    <p class="notice" id="setup-notice" hidden>Firebase is not connected yet. Open <code>js/config.js</code>, paste your Firebase settings, then reload this page. Steps are in README.md.</p>
+
+    <!-- Login -->
+    <section class="login" id="login" hidden>
+      <img src="images/logo-mark.jpg" alt="" width="72" height="75">
+      <h1>Admin login</h1>
+      <form id="login-form">
+        <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required></div>
+        <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
+        <p class="form-error" id="login-error" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Log in</button>
+      </form>
+    </section>
+
+    <!-- App -->
+    <section id="app" hidden>
+      <header class="a-head">
+        <h1>Shop admin</h1>
+        <div class="a-head-r">
+          <span id="who"></span>
+          <button type="button" class="btn btn-ghost" id="logout">Log out</button>
+        </div>
+      </header>
+      <p class="notice" id="a-error" role="alert" hidden></p>
+
+      <nav class="tabs" role="tablist" aria-label="Admin sections">
+        <button role="tab" type="button" data-tab="orders" aria-selected="true">Orders <span class="badge" id="pending-badge" hidden></span></button>
+        <button role="tab" type="button" data-tab="products" aria-selected="false">Products</button>
+        <button role="tab" type="button" data-tab="reports" aria-selected="false">Reports</button>
+      </nav>
+
+      <div id="tab-orders">
+        <div class="bar">
+          <select id="o-status" aria-label="Filter by status"></select>
+          <input id="o-search" type="search" placeholder="Search order no, name, phone" aria-label="Search orders">
+          <button type="button" class="btn btn-ghost" id="export-csv">Download CSV backup</button>
+        </div>
+        <div id="orders-list"></div>
+      </div>
+
+      <div id="tab-products" hidden>
+        <div class="bar">
+          <button type="button" class="btn btn-primary" id="new-product">Add product</button>
+          <button type="button" class="btn btn-ghost" id="seed-products" hidden>Load starter products</button>
+        </div>
+        <form id="product-form" class="pform" hidden>
+          <input type="hidden" id="p-id">
+          <div class="field"><label for="p-name">Product name</label><input id="p-name" maxlength="120" required></div>
+          <div class="two">
+            <div class="field"><label for="p-brand">Brand</label><input id="p-brand" maxlength="60"></div>
+            <div class="field"><label for="p-size">Size</label><input id="p-size" maxlength="30" placeholder="135g"></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="p-category">Category</label>
+              <select id="p-category"><option>Skin care</option><option>Hair care</option><option>Other</option></select></div>
+            <div class="field"><label for="p-origin">Imported from</label>
+              <select id="p-origin"></select></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="p-price">Price (taka)</label><input id="p-price" type="number" min="0" step="1" required></div>
+            <div class="field"><label for="p-stock">Stock (pieces)</label><input id="p-stock" type="number" min="0" step="1" placeholder="Leave empty = not tracked"></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="p-dealqty">Bundle: pieces</label><input id="p-dealqty" type="number" min="2" step="1" placeholder="2"></div>
+            <div class="field"><label for="p-dealprice">Bundle: total price</label><input id="p-dealprice" type="number" min="0" step="1" placeholder="950"></div>
+          </div>
+          <div class="field"><label for="p-expiry">Earliest expiry (only you see this)</label><input id="p-expiry" maxlength="30" placeholder="12/2027"></div>
+          <div class="field"><label for="p-image">Image Path</label><input id="p-image" maxlength="300" placeholder="images/product.jpg" autocomplete="off" spellcheck="false"></div>
+          <div class="field"><label for="p-desc">Description (repeat only what is printed on the pack)</label><textarea id="p-desc" rows="3" maxlength="600"></textarea></div>
+          <div class="field"><label for="p-sort">Display order (small number shows first)</label><input id="p-sort" type="number" step="1"></div>
+          <label class="check"><input type="checkbox" id="p-active" checked> Show on the website</label>
+          <p class="form-error" id="p-error" role="alert" hidden></p>
+          <div class="bar"><button class="btn btn-primary" type="submit">Save product</button><button class="btn btn-ghost" type="button" id="cancel-product">Cancel</button></div>
+        </form>
+        <div id="products-list"></div>
+      </div>
+
+      <div id="tab-reports" hidden></div>
+    </section>
+  </div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
