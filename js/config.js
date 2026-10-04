@@ -3,9 +3,13 @@
 // ============================================================
 
 // Firebase > Project settings > Your apps > Web app > "firebaseConfig"
+<<<<<<< HEAD
 // These are public client values, not a secret. Everything is protected by
 // firestore.rules, not by hiding this file. Never put a service account,
 // private key or Admin SDK credential in this project.
+=======
+// (These values are safe to publish. Security comes from firestore.rules.)
+>>>>>>> 12d012c2160422f2ebdc359841946b7ae45713d6
 export const firebaseConfig = {
   apiKey: "AIzaSyDxNv5EgeKgU3MegB6fMXzPeJmvWHLi2CQ",
   authDomain: "beautyfashion-shop.firebaseapp.com",
