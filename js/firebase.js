@@ -1,18 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDxNv5EgeKgU3MegB6fMXzPeJmvWHLi2CQ",
-  authDomain: "beautyfashion-shop.firebaseapp.com",
-  databaseURL: "https://beautyfashion-shop-default-rtdb.firebaseio.com",
-  projectId: "beautyfashion-shop",
-  storageBucket: "beautyfashion-shop.firebasestorage.app",
-  messagingSenderId: "960538465790",
-  appId: "1:960538465790:web:d47f9ec3c538827cf99caf"
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export default app;
+﻿// Firebase is initialised in exactly ONE place: js/data.js.
+//
+// This file used to hold a second copy of firebaseConfig plus its own
+// initializeApp() call, which meant two apps could be created for the same
+// project. It is kept only so the old path is obvious, and it must stay
+// commented out. Everything imports { getFs, getAuthKit } from ./data.js.
+//
+// Firebase > Project settings > Your apps > Web app > "firebaseConfig"
+// The live values live in js/config.js and are safe to publish; access is
+// controlled by firestore.rules.

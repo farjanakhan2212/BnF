@@ -1,67 +1,514 @@
-body.admin { background: var(--cream); }
-.a-wrap { max-width: 980px; margin: 0 auto; padding: 1.25rem var(--pad) 4rem; }
-.a-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.a-head h1 { font-size: 2rem; }
-.a-head-r { display: flex; align-items: center; gap: .75rem; font-size: .9rem; color: var(--ink-soft); }
-.a-head .btn { padding: .55rem 1rem; }
-.notice { background: var(--plum-wash); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+/* =========================
+   ADMIN DASHBOARD SHELL
+   Presentation only. Every id the panel JS drives (#who, #logout, #o-search,
+   #o-status, #export-csv, #pending-badge, #orders-list) is unchanged.
+   ========================= */
+
+/* Icons are drawn with a mask instead of inline <svg>, because admin.js swaps
+   button.textContent while the CSV export runs, which would delete a real
+   child element. A pseudo-element survives that untouched. */
+:root {
+  --m-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20.5 20.5-4.2-4.2'/%3E%3C/svg%3E");
+  --m-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M7 10l5 5 5-5M12 15V3'/%3E%3C/svg%3E");
+  --m-logout: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5M21 12H9'/%3E%3C/svg%3E");
+  --m-chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+body.admin { background: linear-gradient(180deg, #F6F4FF 0, var(--cream) 20rem); }
+.a-wrap { max-width: 1180px; margin: 0 auto; padding: 1.1rem var(--pad) 4rem; }
+
+/* ---------- Header ---------- */
+.a-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: .7rem .9rem; margin-bottom: 1.25rem;
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(46, 26, 71, .04), 0 10px 26px -20px rgba(46, 26, 71, .4);
+}
+.a-brand { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.a-logo {
+  flex: none; width: 42px; height: 44px; border-radius: 50%; object-fit: cover;
+  border: 1px solid var(--line); background: var(--cream-2);
+}
+.a-brand-t { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.a-brand-t strong { font: 700 1.2rem/1.15 var(--serif); color: var(--plum); }
+.a-brand-t small {
+  font: 500 .7rem/1 var(--sans); letter-spacing: .17em; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: .3rem;
+}
+.a-head-r { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.a-head-r #who {
+  font: 500 .88rem var(--sans); color: var(--ink-soft); background: var(--cream);
+  border: 1px solid var(--line); border-radius: 999px; padding: .4rem .85rem;
+  max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.a-head .btn { padding: .5rem 1rem; font-size: .9rem; }
+
+/* outline / danger style, as asked for the logout action */
+.btn-danger { background: #FFF7F6; color: var(--danger); border-color: #E9BDB9; }
+.btn-danger:hover { background: #FDECEA; border-color: #E09E98; }
+
+.btn.icn { position: relative; padding-left: 2.25rem; }
+.icn::before {
+  content: ""; position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+  width: 1.05rem; height: 1.05rem; background: currentColor; opacity: .65; pointer-events: none;
+  -webkit-mask: var(--m) center / contain no-repeat;
+  mask: var(--m) center / contain no-repeat;
+}
+.ic-download { --m: var(--m-download); }
+.ic-logout { --m: var(--m-logout); }
+.ic-search { --m: var(--m-search); }
+
+/* inline SVG used inside the JS rendered order cards */
+.ic {
+  width: 1rem; height: 1rem; flex: none; fill: none; stroke: currentColor;
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* relative/z-index so a notice still reads if it ever appears behind the
+   full-viewport login overlay (it changes no layout). */
+.notice { position: relative; z-index: 6; background: var(--plum-wash); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
 code { background: var(--cream-2); padding: .1rem .35rem; border-radius: 4px; }
 
-.login { max-width: 24rem; margin: 3rem auto; text-align: center; }
-.login img { margin: 0 auto 1rem; border-radius: 50%; }
-.login form { text-align: left; margin-top: 1.25rem; }
+/* =========================
+   ADMIN LOGIN
+   Presentation only. Nothing in here changes behaviour: the same ids
+   (#login, #login-form, #l-email, #l-pass, #l-eye, #login-error) and the same
+   hidden toggles the login JS uses are untouched. The signed-in panel keeps the
+   plain cream page background, because .login is a full-viewport overlay that
+   only exists while nobody is signed in.
+   ========================= */
+.login {
+  /* fixed, so the photo covers the whole viewport whatever .a-wrap's width is.
+     margin:auto on the card (not place-items:center) keeps the card reachable
+     when it is taller than the screen instead of clipping its top. */
+  position: fixed; inset: 0; z-index: 5;
+  display: flex; overflow-y: auto;
+  padding: clamp(1rem, 4vh, 2.5rem) 15px;
 
-.tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--line); margin-bottom: 1.25rem; }
-.tabs button { font: 600 1rem var(--sans); background: none; border: 0; padding: .75rem 1.1rem; cursor: pointer; color: var(--ink-soft); border-bottom: 3px solid transparent; }
-.tabs button[aria-selected="true"] { color: var(--plum); border-bottom-color: var(--plum); }
-.badge { background: var(--papaya); color: #fff; border-radius: 999px; font-size: .8rem; padding: .05rem .5rem; margin-left: .25rem; }
+  /* the photo, plus a light plum wash so white text stays readable over it */
+  background-color: #2E1A47;
+  background-image:
+    linear-gradient(rgba(46, 26, 71, .34), rgba(91, 33, 182, .28)),
+    url("../images/login.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+/* [hidden] must keep winning over display:flex, and it does: 0,2,0 beats 0,1,0 */
+.login[hidden] { display: none; }
 
+/* ---------- Circular glass card ----------
+   --d   = circle diameter
+   --col = width of the content column. A circle is narrow at the top and the
+   bottom, so this is deliberately much smaller than the diameter: every element
+   has to stay inside the curve, not just inside the box. */
+.login-card {
+  --d: 430px;
+  --col: 200px;
+  margin: auto;
+  width: var(--d);
+  aspect-ratio: 1;                 /* always a circle, even if width is clamped */
+  max-width: calc(100% - 30px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  justify-content: safe center;    /* never clips the top on a short screen */
+  text-align: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .55);
+  background: rgba(255, 255, 255, .14);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .35),
+    0 20px 50px -18px rgba(20, 8, 40, .70),
+    0 4px 14px -6px rgba(20, 8, 40, .40);
+}
+/* the column every centred block shares, so the form lines up with the headings */
+.login-brand, .login h1, .login-sub, .login form { width: var(--col); }
+.login form { text-align: left; }
+
+/* ---------- Header: the existing logo, nothing new drawn ---------- */
+.login-logo {
+  flex: none;
+  width: 40px; height: auto;
+  margin: 0 auto .4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, .8);
+  box-shadow: 0 6px 18px rgba(20, 8, 40, .45);
+}
+.login-brand {
+  margin: 0;
+  font: 700 .9rem/1 var(--sans);
+  letter-spacing: .14em;
+  color: rgba(255, 255, 255, .92);
+  text-shadow: 0 2px 8px rgba(20, 8, 40, .45);
+}
+.login h1 {
+  font-size: 1.45rem;
+  margin: .25rem 0 .05rem;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(20, 8, 40, .45);
+}
+.login-sub { margin: 0 0 .65rem; font-size: .78rem; color: rgba(255, 255, 255, .78); }
+
+/* ---------- Fields ---------- */
+.login .field { margin-bottom: .5rem; }
+.login .field label {
+  display: block;
+  font-size: .75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, .93);
+  margin-bottom: .2rem;
+}
+.login .field input {
+  width: 100%;
+  font: inherit;
+font-size: .92rem;
+  padding: .46rem .75rem;
+  color: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .55);
+  background: rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.login .field input::placeholder { color: rgba(255, 255, 255, .62); }
+.login .field input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, .26);
+  border-color: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .28);
+}
+/* keyboard users still get a crisp ring on top of that glow */
+.login .field input:focus-visible { outline: 3px solid rgba(255, 255, 255, .9); outline-offset: 2px; }
+
+/* ---------- Password + show/hide eye ----------
+   The eye button and #l-pass keep working exactly as admin.js drives them;
+   only the right padding and the icon colour are styled here. */
+.l-pass { position: relative; display: block; }
+.login .l-pass input { padding-right: 2.5rem; }
+.l-eye {
+  position: absolute; right: .3rem; top: 50%; transform: translateY(-50%);
+  width: 2rem; height: 2rem;
+  display: grid; place-items: center;
+  background: none; border: 0; border-radius: 8px;
+  cursor: pointer; color: rgba(255, 255, 255, .85);
+}
+.l-eye:hover { background: rgba(255, 255, 255, .22); color: #fff; }
+.l-eye svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.l-eye .eye-shut { display: none; }
+.l-eye[aria-pressed="true"] .eye-open { display: none; }
+.l-eye[aria-pressed="true"] .eye-shut { display: block; }
+
+/* ---------- Error ----------
+   Left as a block element on purpose: admin.js toggles its [hidden] attribute,
+   which only works while nothing sets display on it. */
+.login .form-error {
+margin: 0 0 .5rem;
+  padding: .45rem .6rem;
+  font-size: .78rem;
+  line-height: 1.45;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 138, 128, .65);
+  border-left: 4px solid #FF8A80;
+  background: rgba(120, 24, 24, .5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: #FFE4E1;
+}
+
+/* ---------- Button (admin.js disables it and swaps the label while signing in) ---------- */
+.login .login-go {
+  width: 100%;
+  margin-top: .1rem;
+padding: .55rem 1rem;
+  font-size: .92rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border-color: rgba(255, 255, 255, .35);
+  background: linear-gradient(180deg, var(--plum), var(--plum-2));
+  box-shadow: 0 10px 24px -12px rgba(124, 58, 237, .95);
+  transition: transform .12s, box-shadow .18s, filter .18s;
+}
+.login .login-go:hover:not([disabled]) { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 14px 28px -12px rgba(124, 58, 237, 1); }
+.login .login-go:active:not([disabled]) { transform: translateY(0); filter: brightness(.96); box-shadow: 0 6px 14px -10px rgba(124, 58, 237, .9); }
+.login .login-go[disabled] { box-shadow: none; filter: none; cursor: not-allowed; }
+
+/* ---------- Responsive ----------
+   Tablet keeps the circle, just smaller. Phones get a compact, heavily rounded
+   card instead: a true circle below ~600px either clips the fields or forces
+   unusable inputs, so the curved look is kept without the circle. */
+@media (max-width: 900px) {
+  .login-card { --col: 186px; }
+  .login-logo { width: 36px; }
+  .login h1 { font-size: 1.35rem; }
+  .login-sub { font-size: .74rem; margin-bottom: .55rem; }
+}
+@media (max-width: 600px), (max-height: 560px) {
+  .login { padding: 15px; }
+  .login-card {
+    --col: 100%;
+    width: 100%;
+    max-width: 380px;
+    aspect-ratio: auto;
+    height: auto;
+    padding: 1.9rem 1.4rem;
+    border-radius: 28px;
+    justify-content: flex-start;
+  }
+  .login-logo { width: 58px; margin-bottom: .75rem; }
+  .login-brand { font-size: 1rem; }
+  .login h1 { font-size: 1.8rem; margin: .4rem 0 .2rem; }
+  .login-sub { font-size: .88rem; margin-bottom: 1.3rem; }
+  .login .field { margin-bottom: .95rem; }
+  .login .field label { font-size: .88rem; margin-bottom: .35rem; }
+  .login .field input { font-size: 1rem; padding: .72rem .85rem; }
+  .login .l-pass input { padding-right: 2.9rem; }
+  .l-eye { width: 2.35rem; height: 2.35rem; }
+  .login .form-error { font-size: .88rem; padding: .65rem .8rem; margin-bottom: .9rem; }
+  .login .login-go { padding: .8rem 1rem; font-size: 1rem; margin-top: .3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login .field input, .login .login-go { transition: none; }
+  .login .login-go:hover:not([disabled]) { transform: none; }
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex; gap: .25rem; margin-bottom: 1.5rem; padding: .3rem;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(46, 26, 71, .04);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button {
+  flex: 1; white-space: nowrap; font: 600 .95rem var(--sans);
+  background: none; border: 0; border-radius: 10px; padding: .65rem 1.1rem;
+  cursor: pointer; color: var(--ink-soft); transition: background .15s, color .15s, box-shadow .15s;
+}
+.tabs button:hover { background: var(--cream-2); color: var(--ink); }
+.tabs button[aria-selected="true"] {
+  background: var(--plum); color: #fff; box-shadow: 0 8px 18px -10px rgba(124, 58, 237, .95);
+}
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.4rem; height: 1.4rem; padding: 0 .4rem; margin-left: .45rem;
+  border-radius: 999px; background: var(--papaya); color: #fff;
+  font: 600 .74rem/1 var(--sans); vertical-align: middle;
+}
+.tabs button[aria-selected="true"] .badge { background: rgba(255, 255, 255, .26); }
+/* .badge sets display, so it would beat the user-agent [hidden] rule and the
+   count could never be hidden again. Put it back explicitly. */
+.badge[hidden] { display: none; }
+
+/* ---------- Orders page header ---------- */
+.o-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.o-title { font-size: 2.15rem; }
+.o-lede { margin: .3rem 0 0; color: var(--ink-soft); font-size: .98rem; }
+
+/* ---------- Summary cards ---------- */
+.o-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; margin-bottom: 1.35rem; }
+.osum {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: .85rem 1rem;
+  box-shadow: 0 1px 2px rgba(46, 26, 71, .04);
+}
+.osum-l { display: flex; align-items: center; gap: .45rem; font: 500 .82rem/1.2 var(--sans); color: var(--ink-soft); }
+.osum-l::before { content: ""; flex: none; width: .5rem; height: .5rem; border-radius: 50%; background: var(--line); }
+.osum-n { display: block; margin-top: .45rem; font: 700 1.8rem/1 var(--serif); color: var(--plum); }
+.osum.all .osum-l::before { background: var(--plum); }
+.osum.pending .osum-l::before { background: #E0B341; }
+.osum.confirmed .osum-l::before { background: #7C93E8; }
+.osum.delivered .osum-l::before { background: #4FA97E; }
+.osum.cancelled .osum-l::before { background: #D98A84; }
+
+/* ---------- Toolbar ---------- */
 .bar { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
-.bar input, .bar select { font: inherit; padding: .6rem .8rem; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; }
-.bar input[type="search"] { flex: 1; min-width: 12rem; }
-.bar .btn { padding: .65rem 1.1rem; }
+.o-tools { margin-bottom: 1.1rem; }
+.o-find { position: relative; flex: 1 1 18rem; min-width: 0; }
+.o-find::before {
+  content: ""; position: absolute; left: .95rem; top: 50%; transform: translateY(-50%);
+  width: 1.05rem; height: 1.05rem; background: var(--ink-soft); opacity: .7; pointer-events: none;
+  -webkit-mask: var(--m-search) center / contain no-repeat;
+  mask: var(--m-search) center / contain no-repeat;
+}
+.o-find input {
+  width: 100%; font: inherit; padding: .7rem 1rem .7rem 2.6rem;
+  border: 1.5px solid var(--line); border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 2px rgba(46, 26, 71, .04);
+}
+.o-find input:focus { border-color: var(--plum); outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.o-pick { position: relative; flex: 0 0 auto; }
+.o-pick::after {
+  content: ""; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+  width: .95rem; height: .95rem; background: var(--ink-soft); opacity: .8; pointer-events: none;
+  -webkit-mask: var(--m-chev) center / contain no-repeat;
+  mask: var(--m-chev) center / contain no-repeat;
+}
+.o-pick select {
+  font: inherit; padding: .7rem 2.6rem .7rem 1.1rem; border: 1.5px solid var(--line);
+  border-radius: 999px; background: #fff; color: var(--ink); cursor: pointer;
+  text-transform: capitalize; -webkit-appearance: none; appearance: none;
+}
+.o-pick select:focus { border-color: var(--plum); outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.o-tools #export-csv { margin-left: auto; }
+.o-tools #export-csv[disabled] { opacity: .6; }
 
-.order { background: #fff; border: 1px solid var(--line); border-radius: 10px; margin-bottom: .75rem; }
-.order summary { display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; padding: .85rem 1rem; cursor: pointer; list-style: none; }
-.order summary::-webkit-details-marker { display: none; }
-.o-no { font-weight: 600; }
-.o-meta { color: var(--ink-soft); font-size: .92rem; }
-.o-total { font: 700 1.25rem var(--serif); color: var(--papaya); text-align: right; }
-.pill { display: inline-block; font-size: .8rem; font-weight: 600; border-radius: 999px; padding: .1rem .6rem; background: var(--cream-2); color: var(--ink); margin-right: .25rem; }
-.pill.pending { background: #EDE9FE; }
-.pill.confirmed { background: #DDD6FE; }
-.pill.shipped { background: #C4B5FD; }
-.pill.delivered { background: #A78BFA; }
-.pill.cancelled { background: #F7D6D3; }
-.pill.paid { background: #A78BFA; }
-.o-body { padding: 0 1rem 1rem; border-top: 1px solid var(--line); }
-.o-body h4 { margin: 1rem 0 .25rem; font: 600 1rem var(--sans); color: var(--plum); }
-.o-body p { margin: 0 0 .25rem; overflow-wrap: anywhere; }
-.o-items { width: 100%; border-collapse: collapse; font-size: .95rem; }
-.o-items td { padding: .25rem 0; border-bottom: 1px dashed var(--line); }
-.o-items td:last-child { text-align: right; }
-.o-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem; margin-top: 1rem; }
-.o-ctl label { font-size: .85rem; color: var(--ink-soft); display: block; }
-.o-ctl select, .o-ctl input, .o-ctl textarea { width: 100%; font: inherit; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: 8px; }
+/* ---------- Order card ---------- */
+.ocount { margin: .2rem 0 .8rem; font: 500 .88rem var(--sans); color: var(--ink-soft); }
+.ocard {
+  background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  padding: 1.1rem 1.2rem 1.2rem; margin-bottom: 1rem; min-width: 0;
+  box-shadow: 0 1px 2px rgba(46, 26, 71, .04), 0 16px 34px -28px rgba(46, 26, 71, .5);
+}
+.order:not(.ocard) { margin-bottom: .75rem; }
+.oc-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem 1rem;
+  flex-wrap: wrap; padding-bottom: .85rem; border-bottom: 1px solid var(--line);
+}
+.oc-id { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.o-no { font: 700 1.1rem/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); letter-spacing: .01em; overflow-wrap: anywhere; }
+.oc-when { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; color: var(--ink-soft); }
+.oc-flags { display: flex; gap: .35rem; flex-wrap: wrap; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font: 600 .74rem/1 var(--sans); letter-spacing: .02em; text-transform: capitalize;
+  border-radius: 999px; padding: .35rem .7rem; border: 1px solid transparent;
+  background: var(--cream-2); color: var(--ink);
+}
+.pill::before { content: ""; width: .4rem; height: .4rem; border-radius: 50%; background: currentColor; opacity: .6; }
+.pill.pending { background: #FEF6E4; color: #8A5A00; border-color: #F6E3B8; }
+.pill.confirmed { background: #EDF1FE; color: #2F4C9B; border-color: #D6E0FB; }
+.pill.shipped { background: #F2EDFE; color: #5B32B8; border-color: #DFD3FB; }
+.pill.delivered { background: #E9F7EF; color: #1F6B48; border-color: #C9EAD8; }
+.pill.cancelled { background: #FDEDEC; color: #9E2B23; border-color: #F6D3D0; }
+.pill.unpaid, .pill.refunded { background: #F4F2FB; color: #6B5B7A; border-color: #E6E1F7; }
+.pill.paid { background: #E9F7EF; color: #1F6B48; border-color: #C9EAD8; }
+
+.oc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .8rem; padding: 1rem 0 .2rem; }
+.osec { min-width: 0; background: var(--cream); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .85rem; }
+.osec-h {
+  display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem;
+  font: 600 .73rem/1 var(--sans); letter-spacing: .13em; text-transform: uppercase; color: var(--ink-soft);
+}
+.osec-b { display: flex; flex-direction: column; gap: .22rem; min-width: 0; }
+.osec-b .v { font-weight: 500; overflow-wrap: anywhere; }
+.osec-b .k { font-size: .88rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.osec-b a.tel { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; align-self: flex-start; }
+.osec-b a.tel:hover { text-decoration: underline; }
+
+/* ---------- Items ---------- */
+.oc-items { padding-top: .35rem; }
+.o-items { list-style: none; margin: 0; padding: 0; }
+.oi { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .2rem .9rem; align-items: baseline; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
+.oi:last-child { border-bottom: 0; }
+.oi-n { font-weight: 500; overflow-wrap: anywhere; }
+.oi-q { font-size: .84rem; color: var(--ink-soft); white-space: nowrap; }
+.oi-p { font-weight: 600; color: var(--papaya); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.oi-id { grid-column: 1 / -1; font-size: .73rem; color: var(--ink-soft); opacity: .85; overflow-wrap: anywhere; }
+
+/* ---------- Price summary ---------- */
+.oc-sum { width: min(100%, 22rem); margin: .9rem 0 0 auto; background: var(--cream); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
+.osum-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .22rem 0; font-size: .95rem; }
+.osum-row > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.osum-row.grand { margin-top: .4rem; padding-top: .55rem; border-top: 1px solid var(--line); font: 700 1.25rem/1 var(--serif); color: var(--plum); }
+
+.onote { margin-top: .9rem; background: #FFFBF0; border: 1px solid #F3E3BE; border-radius: 12px; padding: .7rem .85rem; }
+.onote b { display: flex; align-items: center; gap: .4rem; font: 600 .8rem/1 var(--sans); color: #8A5A00; }
+.onote p { margin: .35rem 0 0; font-size: .92rem; overflow-wrap: anywhere; }
+
+/* ---------- Status controls + actions ----------
+   The ids/classes here are the ones saveOrder() queries. */
+.o-ctl {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .7rem;
+  margin-top: 1.1rem; padding-top: 1rem; border-top: 1px dashed var(--line);
+}
+.o-ctl > div { min-width: 0; }
+.o-ctl label { display: block; margin-bottom: .25rem; font: 500 .82rem var(--sans); color: var(--ink-soft); }
+.o-ctl select, .o-ctl input, .o-ctl textarea {
+  width: 100%; font: inherit; padding: .55rem .7rem;
+  border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+}
+.o-ctl select:focus, .o-ctl input:focus, .o-ctl textarea:focus {
+  border-color: var(--plum); outline: none; box-shadow: 0 0 0 3px var(--ring);
+}
 .o-ctl .wide { grid-column: 1 / -1; }
-.o-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .85rem; }
-.o-actions .btn { padding: .6rem 1.1rem; }
-.o-actions a.btn { display: inline-block; }
+.o-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+.o-actions .btn { padding: .6rem 1.15rem; font-size: .95rem; }
+.o-card-total { margin-left: auto; font: 700 1.3rem/1 var(--serif); color: var(--plum); }
+.o-flash { margin: .6rem 0 0; min-height: 1.1em; font-size: .88rem; color: var(--ink-soft); }
+.o-flash:empty { margin: 0; min-height: 0; }
 
-.pform { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem; }
+/* ---------- Loading + empty ---------- */
+.oload { display: flex; align-items: center; gap: .7rem; padding: 1.6rem .25rem; color: var(--ink-soft); }
+.oload p { margin: 0; }
+.spin {
+  flex: none; width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  border: 2.5px solid var(--line); border-top-color: var(--plum);
+  animation: bnf-spin .7s linear infinite;
+}
+@keyframes bnf-spin { to { transform: rotate(360deg); } }
+.oempty {
+  display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center;
+  padding: 3rem 1.25rem; background: #fff; border: 1px dashed var(--line);
+  border-radius: 18px; color: var(--ink-soft);
+}
+.oempty .ic { width: 2.3rem; height: 2.3rem; color: var(--ring); stroke-width: 1.3; margin-bottom: .35rem; }
+.oempty h3 { font-size: 1.4rem; }
+.oempty p { margin: 0; max-width: 26rem; }
+
+/* ---------- Products + Reports (unchanged behaviour, tidied frame) ---------- */
+.pform { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1rem; margin-bottom: 1.25rem; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .9rem; }
 .check { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; }
-.prow { display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: .75rem 1rem; margin-bottom: .5rem; }
+.prow { display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1rem; margin-bottom: .55rem; }
 .prow.off { opacity: .6; }
 .prow .p-name { font-weight: 600; }
 .prow .p-meta { font-size: .9rem; color: var(--ink-soft); }
 .prow button { font: 600 .9rem var(--sans); padding: .5rem 1rem; border-radius: 999px; border: 1.5px solid var(--plum); background: none; color: var(--plum); cursor: pointer; }
+.prow button:hover { background: var(--plum-wash); }
+.hint { min-height: 1.2em; margin: 0 0 .5rem; font-size: .9rem; color: var(--ink-soft); }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
-.stat { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 1rem; }
 .stat b { display: block; font: 700 1.7rem var(--serif); color: var(--plum); }
 .stat span { color: var(--ink-soft); font-size: .92rem; }
-.rtable { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.rtable { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .rtable th, .rtable td { padding: .5rem .8rem; text-align: left; border-bottom: 1px solid var(--line); }
 .rtable td:last-child, .rtable th:last-child { text-align: right; }
-@media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .o-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .a-head { padding: .65rem .75rem; }
+  .a-brand-t strong { font-size: 1.05rem; }
+  .a-head-r #who { max-width: 8.5rem; padding: .35rem .7rem; }
+  .tabs button { flex: 0 0 auto; padding: .6rem .9rem; font-size: .9rem; }
+  .o-title { font-size: 1.75rem; }
+  .o-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .o-tools { flex-direction: column; align-items: stretch; }
+  .o-find, .o-pick { flex: 1 1 auto; width: 100%; }
+  .o-pick select { width: 100%; }
+  .o-tools #export-csv { margin-left: 0; width: 100%; }
+  .ocard { padding: .9rem .85rem 1rem; border-radius: 16px; }
+  .oc-head { flex-direction: column; align-items: stretch; }
+  .oc-grid { grid-template-columns: 1fr; }
+  .oc-sum { width: 100%; }
+  .o-actions { flex-direction: column; align-items: stretch; }
+  .o-actions .btn { width: 100%; }
+  .o-card-total { margin-left: 0; text-align: center; }
+  .two { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation-duration: 2.5s; }
+  .tabs button { transition: none; }
+}

@@ -1,6 +1,9 @@
-import { SHOP, DEMO_MODE } from "./config.js";
+import { SHOP, DEMO_MODE, LIMITS } from "./config.js";
 import { fetchProducts, createOrder } from "./data.js";
-import { esc, money, DISTRICTS, DHAKA_CITY, orderText, newOrderNo, lineTotal, stockLeft, available, imgSrc, placeholderImg } from "./shared.js";
+import {
+  esc, money, DISTRICTS, DHAKA_CITY, orderText, newOrderNo, lineTotal, stockLeft, available,
+  imgSrc, placeholderImg, normPhone, phoneOk, trxOk, orderProblems, orderItem, dealOf,
+} from "./shared.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 
@@ -12,6 +15,8 @@ const state = {
   q: "",
   loadError: false,
   loaded: false, // products have arrived, so the saved cart can safely be pruned
+  cartMsg: "",   // short note shown in the cart, e.g. the per order item limit
+  placing: false,
 };
 
 function loadCart() {
@@ -80,7 +85,8 @@ function renderGrid() {
     .map((p) => {
       const left = stockLeft(p);
       const ok = available(p);
-      const deal = p.deal && p.deal.qty > 1 ? `<span class="deal">${p.deal.qty} for ${money(p.deal.price)}</span>` : "";
+      const d = dealOf(p);
+      const deal = d ? `<span class="deal">${esc(d.qty)} for ${money(d.price)}</span>` : "";
       const expiryHtml = p.expiry ? `<p class="item-expiry">Expiry: ${esc(p.expiry)}</p>` : "";
       return `<article class="item">
         <div class="item-img"><img src="${esc(imgSrc(p))}" alt="${esc(p.name)}" loading="lazy" width="400" height="500" data-ph="${esc(placeholderImg(p))}"></div>
@@ -105,7 +111,7 @@ function cartLines() {
   for (const [id, qty] of Object.entries(state.cart)) {
     const p = byId(id);
     if (!p || !available(p)) continue;
-    const q = Math.min(Math.max(1, Math.floor(qty)), stockLeft(p), 20);
+    const q = Math.min(Math.max(1, Math.floor(qty)), stockLeft(p), LIMITS.maxQtyPerItem);
     lines.push({ p, qty: q, total: lineTotal(p, q) });
   }
   return lines;
@@ -158,16 +164,26 @@ function renderCart() {
   foot.innerHTML = `
     <div class="row"><span>Subtotal</span><strong>${money(subtotal(lines))}</strong></div>
     <p class="hint">Delivery charge is added at checkout (${money(SHOP.deliveryInsideDhaka)} inside Dhaka City, ${money(SHOP.deliveryOutsideDhaka)} outside).</p>
+    ${state.cartMsg ? `<p class="form-error" role="alert">${esc(state.cartMsg)}</p>` : ""}
     <button type="button" class="btn btn-primary btn-block" id="go-checkout">Checkout</button>`;
 }
 
+// Returns false when the change was refused (so the caller can leave a note).
 function setQty(id, qty) {
   const p = byId(id);
-  if (!p) return;
-  qty = Math.min(qty, stockLeft(p), 20);
+  if (!p) return false;
+  state.cartMsg = "";
+  const isNew = !(id in state.cart);
+  if (isNew && qty > 0 && Object.keys(state.cart).length >= LIMITS.maxCartItems) {
+    state.cartMsg = `One order can hold ${LIMITS.maxCartItems} different products. Remove one to add another.`;
+    renderCart();
+    return false;
+  }
+  qty = Math.min(qty, stockLeft(p), LIMITS.maxQtyPerItem);
   if (qty <= 0) delete state.cart[id];
   else state.cart[id] = qty;
   renderCart();
+  return true;
 }
 
 const drawer = $("#drawer");
@@ -221,7 +237,7 @@ function renderPayAndSum() {
     box.innerHTML = `<h3>Pay full amount with bKash</h3>
       <p>Send <span class="big">${money(total)}</span> to <strong>${esc(SHOP.bkashNumber)}</strong> (${esc(SHOP.bkashType)}), then enter the details below. We ship by ${esc(SHOP.courier)} after we confirm your payment.</p>
       <div class="field"><label for="f-trx">bKash Transaction ID (TrxID)</label><input id="f-trx" name="trxId" maxlength="30" autocomplete="off" required></div>
-      <div class="field"><label for="f-sender">bKash number you paid from</label><input id="f-sender" name="senderNumber" type="tel" inputmode="numeric" placeholder="01XXXXXXXXX" required></div>`;
+      <div class="field"><label for="f-sender">bKash number you paid from</label><input id="f-sender" name="senderNumber" type="tel" inputmode="numeric" placeholder="01XXXXXXXXX" maxlength="14" required></div>`;
   }
   $("#order-sum").innerHTML = `
     <div class="row"><span>Subtotal</span><span>${money(sub)}</span></div>
@@ -236,13 +252,19 @@ function openCheckout() {
   $("#checkout-form-wrap").hidden = false;
   $("#checkout-done").hidden = true;
   $("#form-error").hidden = true;
+  fallbackSaved = null;         // a new checkout attempt gets its own order number
+  hideFallback();
   renderPayAndSum();
-  dlg.showModal();
+  openDialog();
 }
 districtSel.addEventListener("change", renderPayAndSum);
 
-const normPhone = (v) => String(v || "").replace(/[\s-]/g, "").replace(/^\+?88/, "");
-const phoneOk = (v) => /^01[3-9]\d{8}$/.test(v);
+// Older mobile browsers have no <dialog>.showModal(), so fall back to the
+// open attribute instead of throwing and leaving no way to check out.
+function openDialog() {
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+}
 
 function fail(msg, el) {
   const e = $("#form-error");
@@ -250,12 +272,27 @@ function fail(msg, el) {
   e.hidden = false;
   form.querySelectorAll(".err").forEach((x) => x.classList.remove("err"));
   if (el) { el.classList.add("err"); el.focus(); }
+  return false;
+}
+
+// Re-read the products before writing, so an item that sold out while the page
+// was open is caught instead of being ordered anyway.
+async function refreshProducts() {
+  try {
+    state.products = await fetchProducts();
+    state.loaded = true;
+    state.loadError = false;
+    return true;
+  } catch (err) {
+    console.warn("Product refresh failed, using the last known list.", err);
+    return false;
+  }
 }
 
 form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  if (state.placing) return;
   const btn = $("#place-order");
-  const { lines, sub, delivery, total, zone } = computeTotals();
   const fd = new FormData(form);
   const name = String(fd.get("name") || "").trim();
   const phone = normPhone(fd.get("phone"));
@@ -264,23 +301,54 @@ form.addEventListener("submit", async (ev) => {
   const address = String(fd.get("address") || "").trim();
   const note = String(fd.get("note") || "").trim();
 
-  if (!lines.length) return fail("Your cart is empty.");
-  if (name.length < 2) return fail("Please enter your full name.", $("#f-name"));
-  if (!phoneOk(phone)) return fail("Enter a valid mobile number, like 01712345678.", $("#f-phone"));
+  // Spam trap: real people never fill this field. Pretend it worked.
+  if (fd.get("website")) { closeDialog(); return; }
+
+  if (name.length < 2 || name.length > LIMITS.maxName)
+    return fail("Please enter your full name.", $("#f-name"));
+  if (!phoneOk(phone))
+    return fail("Enter a valid mobile number, like 01712345678.", $("#f-phone"));
   if (!district) return fail("Choose your district.", districtSel);
-  if (address.length < 8) return fail("Enter your full address so the courier can find you.", $("#f-address"));
+  if (area.length > LIMITS.maxArea) return fail("Thana / Upazila is too long.", $("#f-area"));
+  if (address.length < 8 || address.length > LIMITS.maxAddress)
+    return fail("Enter your full address so the courier can find you.", $("#f-address"));
+  if (note.length > LIMITS.maxNote) return fail("The note is too long.", $("#f-note"));
+
+  state.placing = true;
+  btn.disabled = true;
+  btn.textContent = "Checking stock...";
+  await refreshProducts();
+
+  // Recalculated from the fresh product list, never from what was typed.
+  const { lines, sub, delivery, total, zone } = computeTotals();
+
+  if (!lines.length) {
+    state.placing = false;
+    btn.disabled = false;
+    btn.textContent = "Place order";
+    renderGrid();
+    renderCart();
+    return fail("Your cart is empty now. Please pick your products again.");
+  }
+  for (const { p, qty } of lines) {
+    if (!available(p) || stockLeft(p) < qty) {
+      state.placing = false;
+      btn.disabled = false;
+      btn.textContent = "Place order";
+      renderGrid();
+      renderCart();
+      return fail(`${p.name} is out of stock now. Please update your cart.`);
+    }
+  }
 
   let bkash = null;
   if (zone === "outside") {
     const trxId = String(fd.get("trxId") || "").trim().toUpperCase();
     const senderNumber = normPhone(fd.get("senderNumber"));
-    if (trxId.length < 6) return fail("Enter the bKash TrxID from your payment message.", $("#f-trx"));
-    if (!phoneOk(senderNumber)) return fail("Enter the bKash number you paid from.", $("#f-sender"));
+    if (!trxOk(trxId)) return stopPlacing(btn, "Enter the bKash TrxID from your payment message.", "#f-trx");
+    if (!phoneOk(senderNumber)) return stopPlacing(btn, "Enter the bKash number you paid from.", "#f-sender");
     bkash = { trxId, senderNumber };
   }
-
-  // Spam trap: real people never fill this field. Pretend it worked.
-  if (fd.get("website")) { dlg.close(); return; }
 
   const order = {
     orderNo: newOrderNo(),
@@ -290,7 +358,9 @@ form.addEventListener("submit", async (ev) => {
     paymentMethod: zone === "inside" ? "cod" : "bkash",
     courier: zone === "outside" ? SHOP.courier : "",
     customer: { name, phone, district, area, address, note },
-    items: lines.map(({ p, qty, total: lt }) => ({ id: p.id, name: p.name + (p.size ? ` (${p.size})` : ""), price: p.price, qty, lineTotal: lt })),
+    // Every item copies the price and the bundle deal in, so this order stays
+    // correct even if the product price is changed or the product is deleted.
+    items: lines.map(({ p, qty }) => orderItem(p, qty)),
     subtotal: sub,
     deliveryCharge: delivery,
     total,
@@ -298,35 +368,183 @@ form.addEventListener("submit", async (ev) => {
   };
   if (bkash) order.bkash = bkash;
 
-  btn.disabled = true;
-  btn.textContent = "Placing order...";
-  try {
-    await createOrder(order);
-  } catch (err) {
-    console.error(err);
-    btn.disabled = false;
-    btn.textContent = "Place order";
-    return fail("We could not place your order. Check your internet and try again, or message us on Messenger.");
+  // Same checks firestore.rules runs, so the customer sees a sentence and not a
+  // permission error. See shared.js orderProblems().
+  const problems = orderProblems(order);
+  if (problems.length) {
+    console.warn("Order rejected by the local check:", problems);
+    return stopPlacing(btn, "Something in the order is not right. Please check your details and try again.");
   }
+
+  btn.textContent = "Placing order...";
+  let saved;
+  try {
+    saved = await createOrder(order);
+  } catch (err) {
+    console.error("Order could not be saved:", err);
+    // Nothing is lost: the cart, the totals and every form field stay exactly as
+    // they are, so the customer can send the same order to us on Messenger.
+    hideFallback();
+    showMessengerFallback(order);
+    return stopPlacing(btn, err?.code === "invalid-order"
+      ? "Something in the order is not right. Please check your details and try again."
+      : "Your order could not be submitted automatically. You can still place your order through Messenger.");
+  }
+
+  state.placing = false;
   btn.disabled = false;
   btn.textContent = "Place order";
   state.cart = {};
+  state.cartMsg = "";
   saveCart();
   renderCart();
   form.reset();
-  showDone(order);
+  hideFallback();
+  showDone(saved || order);
 });
 
+function stopPlacing(btn, msg, field) {
+  state.placing = false;
+  btn.disabled = false;
+  btn.textContent = "Place order";
+  return fail(msg, field ? $(field) : null);
+}
+
+/* ---------- Messenger fallback ---------- */
+// Used only when Firestore refuses the order. The checkout form, the cart and
+// the totals are all left untouched, so this only adds a way to finish the
+// order by hand.
+const fallbackBox = () => $("#checkout-fallback");
+
+function hideFallback() {
+  const box = fallbackBox();
+  if (box) { box.hidden = true; box.innerHTML = ""; }
+}
+
+// The message the customer sends us. Every value comes from the live cart and
+// the live form, so it always matches what is shown on the checkout page.
+// The Order ID is the one that was actually written to Firestore.
+function fallbackText(o) {
+  const items = o.items.map((i, n) =>
+    `${n + 1}. ${i.name} × ${i.qty} — ${money(i.lineTotal ?? i.price * i.qty)}`);
+  return [
+    "BnF Order Request",
+    "",
+    `Order ID: ${o.orderNo}`,
+    "",
+    "Order Items:",
+    ...items,
+    "",
+    `Subtotal: ${money(o.subtotal)}`,
+    `Delivery: ${money(o.deliveryCharge)}`,
+    `Total: ${money(o.total)}`,
+    "",
+    "Customer Information:",
+    `Name: ${o.customer.name}`,
+    `Mobile: ${o.customer.phone}`,
+    `District: ${o.customer.district}`,
+    `Thana / Upazila: ${o.customer.area || "-"}`,
+    `Full Address: ${o.customer.address}`,
+    ...(o.customer.note ? [`Note: ${o.customer.note}`] : []),
+    "",
+    o.paymentMethod === "cod"
+      ? "Payment Method: Cash on Delivery"
+      : `Payment Method: bKash (TrxID ${o.bkash?.trxId || "-"}, from ${o.bkash?.senderNumber || "-"})`,
+    "",
+    "Please confirm my order.",
+  ].join("\n");
+}
+
+// The order that has ALREADY been written for the current checkout attempt, so
+// every retry reuses the very same order number. A visitor cannot read orders
+// (firestore.rules allows reads for the admin only), so this saved reference is
+// what stops a second click from creating a duplicate document.
+let fallbackSaved = null;
+
+function showMessengerFallback(order) {
+  const box = fallbackBox();
+  if (!box) return;
+  box.hidden = false;
+  box.className = "done";
+  box.innerHTML = `
+    <h2>Your order could not be submitted automatically.</h2>
+    <p>Send the order to us on Messenger and we will confirm it for you.</p>
+    <div class="stack">
+      <button type="button" class="btn btn-primary" id="fallback-send">Copy &amp; Open Messenger</button>
+      <button type="button" class="btn btn-ghost" data-close-checkout>Back to Website</button>
+    </div>
+    <p class="hint" id="fallback-hint" role="status"></p>`;
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const btn = $("#fallback-send");
+  const hint = $("#fallback-hint");
+  const label = "Copy & Open Messenger";
+
+  btn.addEventListener("click", async () => {
+    if (btn.disabled) return;                       // one run at a time
+    btn.disabled = true;
+    btn.textContent = "Saving your order...";
+    hint.textContent = "";
+
+    // 1. Record the order first, so the admin panel receives it as "pending".
+    //    Same createOrder(), same validation, same firestore.rules as the
+    //    normal checkout. Messenger itself can never write to Firestore.
+    //    keepNo keeps this checkout attempt's order number for every retry, so a
+    //    second click can only reuse the order that already exists.
+    let saved = fallbackSaved || order;
+    if (!fallbackSaved) {
+      try {
+        saved = await createOrder(order, { keepNo: true });
+        fallbackSaved = saved;
+      } catch (err) {
+        if (err?.code === "order-exists") {
+          // Already stored under this number: reuse it, never write it twice.
+          saved = order;
+          fallbackSaved = order;
+        } else {
+          console.error("Fallback order could not be saved:", err);
+          btn.disabled = false;
+          btn.textContent = label;
+          hint.textContent = "Your order details could not be saved automatically. Please try again.";
+          return;                                    // never pretend it was saved
+        }
+      }
+    }
+
+    // 2. Copy the details, then 3. open Messenger. The copied message carries the
+    //    same order number that Firestore stored.
+    const text = fallbackText(saved);
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      hint.textContent = "Could not copy the order details automatically. Please try again.";
+    }
+    btn.disabled = false;
+    btn.textContent = label;
+    // Only open Messenger once the details really are on the clipboard. This
+    // tab, with the cart and the form still filled in, stays open behind it.
+    if (!copied) return;
+    hint.textContent = `Order saved. Your Order ID is ${saved.orderNo} — please keep it for future reference. `
+      + "Paste the details into the Messenger chat and send.";
+    window.open(SHOP.messengerLink, "_blank", "noopener");
+  });
+}
+
 function showDone(order) {
+  // `order` is what createOrder() actually wrote, so this Order ID is the
+  // Firestore document id and the orderNo field, not a display-only number.
   const text = orderText(order);
   $("#checkout-form-wrap").hidden = true;
   const done = $("#checkout-done");
   done.hidden = false;
   done.className = "done";
   done.innerHTML = `
-    <h2>Order received</h2>
-    <p>Your order number is</p>
+    <h2>Order placed successfully!</h2>
+    <p>Your Order ID is</p>
     <p class="order-no">${esc(order.orderNo)}</p>
+    <p>Please keep this Order ID for future reference.</p>
     <p>${
       order.paymentMethod === "cod"
         ? `We will send you a confirmation message through Messenger. Keep <strong>${money(order.total)}</strong> ready in cash for delivery.`
@@ -349,6 +567,11 @@ function showDone(order) {
     }
     window.open(SHOP.messengerLink, "_blank", "noopener");
   });
+}
+
+function closeDialog() {
+  if (typeof dlg.close === "function") dlg.close();
+  else dlg.removeAttribute("open");
 }
 
 /* ---------- Events ---------- */
@@ -376,21 +599,20 @@ document.addEventListener("click", (e) => {
   else if (t.id === "go-checkout") openCheckout();
   else if (t.id === "open-cart") openCart();
   else if (t.id === "close-cart") closeCart();
-  else if (t.hasAttribute("data-close-checkout")) dlg.close();
+  else if (t.hasAttribute("data-close-checkout")) closeDialog();
 });
 scrim.addEventListener("click", closeCart);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawer.classList.contains("open")) closeCart(); });
 $("#search").addEventListener("input", (e) => { state.q = e.target.value; renderGrid(); });
 
+// Nothing should ever leave a silent promise rejection behind on the page.
+window.addEventListener("unhandledrejection", (e) => {
+  console.warn("Unhandled promise rejection:", e.reason);
+});
+
 /* ---------- Boot ---------- */
 (async function init() {
   renderStamps(); renderChips(); renderGrid(); renderCart();
-  try {
-    state.products = await fetchProducts();
-  } catch (err) {
-    console.error(err);
-    state.loadError = true;
-  }
-  state.loaded = true;
+  if (!(await refreshProducts())) state.loadError = true;
   renderStamps(); renderChips(); renderGrid(); renderCart();
 })();

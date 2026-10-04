@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,48 +9,97 @@
   <link rel="icon" href="images/logo-mark.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Hind+Siliguri:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Hind+Siliguri:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
+
 <body class="admin">
   <div class="a-wrap">
-    <p class="notice" id="setup-notice" hidden>Firebase is not connected yet. Open <code>js/config.js</code>, paste your Firebase settings, then reload this page. Steps are in README.md.</p>
+    <p class="notice" id="setup-notice" hidden>Firebase is not connected yet. Open <code>js/config.js</code>, paste your
+      Firebase settings, then reload this page. Steps are in README.md.</p>
 
     <!-- Login -->
     <section class="login" id="login" hidden>
-      <img src="images/logo-mark.jpg" alt="" width="72" height="75">
-      <h1>Admin login</h1>
-      <form id="login-form">
-        <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required></div>
-        <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
-        <p class="form-error" id="login-error" role="alert" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit">Log in</button>
-      </form>
+      <div class="login-card">
+        <img class="login-logo" src="images/logo-mark.jpg" alt="" width="72" height="75">
+        <p class="login-brand">Beauty & Fashion by Shimu Khan </p>
+        <h1>Admin Panel</h1>
+        <p class="login-sub">Sign in to manage your store</p>
+        <form id="login-form">
+          <div class="field">
+            <label for="l-email">Email</label>
+            <input id="l-email" type="email" autocomplete="username" placeholder="you@example.com" required>
+          </div>
+          <div class="field">
+            <label for="l-pass">Password</label>
+            <span class="l-pass">
+              <input id="l-pass" type="password" autocomplete="current-password" placeholder="Enter your password"
+                required>
+              <button type="button" class="l-eye" id="l-eye" aria-label="Show password" aria-pressed="false">
+                <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg class="eye-shut" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 6.2A9.9 9.9 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.3 3.9" />
+                  <path d="M6.3 7.9A16.7 16.7 0 0 0 2 12s3.6 6 10 6a9.7 9.7 0 0 0 3.9-.8" />
+                  <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                </svg>
+              </button>
+            </span>
+          </div>
+          <p class="form-error" id="login-error" role="alert" hidden></p>
+          <button class="btn btn-primary btn-block login-go" type="submit">Login</button>
+        </form>
+      </div>
     </section>
 
     <!-- App -->
     <section id="app" hidden>
       <header class="a-head">
-        <h1>Shop admin</h1>
+        <div class="a-brand">
+          <img class="a-logo" src="images/logo-mark.jpg" alt="" width="42" height="44">
+          <span class="a-brand-t">
+            <strong>Beauty & Fashion by Shimu Khan</strong>
+            <small>Admin Panel</small>
+          </span>
+        </div>
         <div class="a-head-r">
           <span id="who"></span>
-          <button type="button" class="btn btn-ghost" id="logout">Log out</button>
+          <button type="button" class="btn btn-danger icn ic-logout" id="logout">Log out</button>
         </div>
       </header>
       <p class="notice" id="a-error" role="alert" hidden></p>
 
       <nav class="tabs" role="tablist" aria-label="Admin sections">
-        <button role="tab" type="button" data-tab="orders" aria-selected="true">Orders <span class="badge" id="pending-badge" hidden></span></button>
+        <button role="tab" type="button" data-tab="orders" aria-selected="true">Orders <span class="badge"
+            id="pending-badge" hidden></span></button>
         <button role="tab" type="button" data-tab="products" aria-selected="false">Products</button>
         <button role="tab" type="button" data-tab="reports" aria-selected="false">Reports</button>
       </nav>
 
       <div id="tab-orders">
-        <div class="bar">
-          <select id="o-status" aria-label="Filter by status"></select>
-          <input id="o-search" type="search" placeholder="Search order no, name, phone" aria-label="Search orders">
-          <button type="button" class="btn btn-ghost" id="export-csv">Download CSV backup</button>
+        <div class="o-head">
+          <div>
+            <h2 class="o-title">Orders</h2>
+            <p class="o-lede">Manage customer orders and track order status.</p>
+          </div>
+        </div>
+
+        <div class="o-stats" id="o-summary"></div>
+
+        <div class="bar o-tools">
+          <div class="o-find">
+            <input id="o-search" type="search" placeholder="Search order no, name, phone" aria-label="Search orders">
+          </div>
+          <div class="o-pick">
+            <select id="o-status" aria-label="Filter by status"></select>
+          </div>
+          <button type="button" class="btn btn-primary icn ic-download" id="export-csv">Download CSV backup</button>
         </div>
         <div id="orders-list"></div>
       </div>
@@ -64,31 +114,48 @@
           <div class="field"><label for="p-name">Product name</label><input id="p-name" maxlength="120" required></div>
           <div class="two">
             <div class="field"><label for="p-brand">Brand</label><input id="p-brand" maxlength="60"></div>
-            <div class="field"><label for="p-size">Size</label><input id="p-size" maxlength="30" placeholder="135g"></div>
+            <div class="field"><label for="p-size">Size</label><input id="p-size" maxlength="30" placeholder="135g">
+            </div>
           </div>
           <div class="two">
             <div class="field"><label for="p-category">Category</label>
-              <select id="p-category"><option>Skin care</option><option>Hair care</option><option>Other</option></select></div>
+              <select id="p-category">
+                <option>Skin care</option>
+                <option>Hair care</option>
+                <option>Other</option>
+              </select>
+            </div>
             <div class="field"><label for="p-origin">Imported from</label>
-              <select id="p-origin"></select></div>
+              <select id="p-origin"></select>
+            </div>
           </div>
           <div class="two">
-            <div class="field"><label for="p-price">Price (taka)</label><input id="p-price" type="number" min="0" step="1" required></div>
-            <div class="field"><label for="p-stock">Stock (pieces)</label><input id="p-stock" type="number" min="0" step="1" placeholder="Leave empty = not tracked"></div>
+            <div class="field"><label for="p-price">Price (taka)</label><input id="p-price" type="number" min="0"
+                step="1" required></div>
+            <div class="field"><label for="p-stock">Stock (pieces)</label><input id="p-stock" type="number" min="0"
+                step="1" placeholder="Leave empty = not tracked"></div>
           </div>
           <div class="two">
-            <div class="field"><label for="p-dealqty">Bundle: pieces</label><input id="p-dealqty" type="number" min="2" step="1" placeholder="2"></div>
-            <div class="field"><label for="p-dealprice">Bundle: total price</label><input id="p-dealprice" type="number" min="0" step="1" placeholder="950"></div>
+            <div class="field"><label for="p-dealqty">Bundle: pieces</label><input id="p-dealqty" type="number" min="2"
+                step="1" placeholder="2"></div>
+            <div class="field"><label for="p-dealprice">Bundle: total price</label><input id="p-dealprice" type="number"
+                min="0" step="1" placeholder="950"></div>
           </div>
-          <div class="field"><label for="p-expiry">Earliest expiry (only you see this)</label><input id="p-expiry" maxlength="30" placeholder="12/2027"></div>
-          <div class="field"><label for="p-image">Image Path</label><input id="p-image" maxlength="300" placeholder="images/product.jpg" autocomplete="off" spellcheck="false"></div>
-          <div class="field"><label for="p-desc">Description (repeat only what is printed on the pack)</label><textarea id="p-desc" rows="3" maxlength="600"></textarea></div>
-          <div class="field"><label for="p-sort">Display order (small number shows first)</label><input id="p-sort" type="number" step="1"></div>
+          <div class="field"><label for="p-expiry">Earliest expiry (only you see this)</label><input id="p-expiry"
+              maxlength="30" placeholder="12/2027"></div>
+          <div class="field"><label for="p-image">Image Path</label><input id="p-image" maxlength="300"
+              placeholder="images/product.jpg" autocomplete="off" spellcheck="false"></div>
+          <div class="field"><label for="p-desc">Description (repeat only what is printed on the pack)</label><textarea
+              id="p-desc" rows="3" maxlength="600"></textarea></div>
+          <div class="field"><label for="p-sort">Display order (small number shows first)</label><input id="p-sort"
+              type="number" step="1"></div>
           <label class="check"><input type="checkbox" id="p-active" checked> Show on the website</label>
           <p class="form-error" id="p-error" role="alert" hidden></p>
-          <div class="bar"><button class="btn btn-primary" type="submit">Save product</button><button class="btn btn-ghost" type="button" id="cancel-product">Cancel</button></div>
+          <div class="bar"><button class="btn btn-primary" type="submit">Save product</button><button
+              class="btn btn-ghost" type="button" id="cancel-product">Cancel</button></div>
         </form>
         <div id="products-list"></div>
+        <p class="hint" id="p-msg" role="status"></p>
       </div>
 
       <div id="tab-reports" hidden></div>
@@ -96,4 +163,5 @@
   </div>
   <script type="module" src="js/admin.js"></script>
 </body>
+
 </html>

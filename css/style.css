@@ -183,7 +183,7 @@ p { margin: 0 0 .75rem; }
 /* Checkout dialog */
 dialog { border: 0; padding: 0; border-radius: 14px; width: min(34rem, calc(100% - 1.5rem)); max-height: calc(100dvh - 1.5rem); background: var(--cream); color: var(--ink); }
 dialog::backdrop { background: rgba(46, 26, 71, .55); }
-#order-form, #checkout-done { padding: 1.25rem; }
+#order-form, #checkout-done, #checkout-fallback { padding: 1.25rem; }
 .field { margin-bottom: 1rem; }
 .field label { display: block; font-weight: 500; margin-bottom: .25rem; }
 .field input, .field select, .field textarea {

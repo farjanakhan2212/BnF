@@ -1,45 +1,307 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Put YOUR admin user's UID here (Firebase console > Authentication > Users > User UID)
+    // =====================================================================
+    //  ADMIN IDENTITY
+    //  This is the only account that may read orders or change products.
+    //  Keep it identical to ADMIN_UID in js/config.js.
+    //  Firebase console > Authentication > Users > your admin > User UID
+    // =====================================================================
     function isAdmin() {
-      return request.auth != null && request.auth.uid == 'ADMIN_UID_HERE';
+      return request.auth != null && request.auth.uid == '9PxeiKhy7YTFXKeCZDtLXMvHu313';
     }
 
-    // Anyone can read products. Only the admin can change them.
-    match /products/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
+    // =====================================================================
+    //  SMALL HELPERS
+    // =====================================================================
+    function isText(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
     }
 
-    // Customers can create an order (once) but can never read, change or delete any order.
-    // Only the admin can read and update. Nobody can delete, so order history stays.
-    match /orders/{id} {
-      allow create: if validOrder(request.resource.data) && id == request.resource.data.orderNo;
-      allow read, update: if isAdmin();
+    // Bangladeshi mobile number: 01XXXXXXXXX
+    function isPhone(v) {
+      return v is string && v.matches('^01[3-9][0-9]{8}$');
+    }
+
+    // =====================================================================
+    //  SAFE FIELD READS
+    //  In Firestore Rules, reading a field that does NOT exist is an ERROR,
+    //  and an error makes the whole rule fail, which the browser reports as
+    //  PERMISSION_DENIED. get(key, default) is the safe way to read an
+    //  optional field: it returns the default instead of failing.
+    // =====================================================================
+    function intOr(p, key, fallback) {
+      return p.get(key, fallback) is int ? p.get(key, fallback) : fallback;
+    }
+
+    // =====================================================================
+    //  PRODUCTS - public read, admin only write
+    //  A bundle is deal_qty pieces for deal_price taka IN TOTAL.
+    //  Both fields 0 or absent = no deal. A real deal needs deal_qty >= 2 and
+    //  a deal_price cheaper than buying the pieces separately.
+    // =====================================================================
+    function dealIsSane(p) {
+      return (intOr(p, 'deal_qty', 0) == 0 && intOr(p, 'deal_price', 0) == 0)
+          || (intOr(p, 'deal_qty', 0) >= 2 && intOr(p, 'deal_qty', 0) <= 20
+              && intOr(p, 'deal_price', 0) >= 1 && intOr(p, 'deal_price', 0) <= 1000000
+              && intOr(p, 'deal_price', 0) < intOr(p, 'deal_qty', 0) * p.price);
+    }
+
+    function validProduct(p) {
+      return isText(p.name, 1, 120)
+          && intOr(p, 'price', -1) >= 0 && intOr(p, 'price', -1) <= 1000000
+          && p.active is bool
+          // stock missing or null means "not tracked", which is allowed.
+          && intOr(p, 'stock', 0) >= 0 && intOr(p, 'stock', 0) <= 1000000
+          && dealIsSane(p);
+    }
+
+    match /products/{productId} {
+      allow read: if true;                                       // the shop needs the list
+      allow create, update: if isAdmin() && validProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // =====================================================================
+    //  THE BUNDLE DEAL, READ SAFELY
+    //  The product documents in this project store the bundle with the FLAT
+    //  pair deal_qty / deal_price. Some older documents use a nested
+    //  deal = { qty: 2, price: 950 } map, and most have deal = null.
+    //  Reading deal.qty on a null or missing deal makes the whole rule FAIL,
+    //  which the browser sees as PERMISSION_DENIED, so the nested map is only
+    //  ever opened after hasKey() and an is map check have both passed.
+    //  The flat field always wins when the key exists, so a product is never
+    //  required to have a nested deal map.
+    //  This mirrors dealOf() in js/shared.js.
+    // =====================================================================
+    function hasKey(m, key) {
+      return m.keys().hasAll([key]);
+    }
+
+    function nestedDealField(p, key) {
+      return (hasKey(p, 'deal') && p.deal is map) ? intOr(p.deal, key, 0) : 0;
+    }
+
+    function liveDealQty(p) {
+      return hasKey(p, 'deal_qty') ? intOr(p, 'deal_qty', 0) : nestedDealField(p, 'qty');
+    }
+
+    function liveDealPrice(p) {
+      return hasKey(p, 'deal_price') ? intOr(p, 'deal_price', 0) : nestedDealField(p, 'price');
+    }
+
+    // =====================================================================
+    //  ORDER LINE ITEM
+    //  The price the customer sent is compared with the LIVE product document,
+    //  so a tampered browser cannot choose its own price and cannot invent a
+    //  better bundle. Each comparison costs one get() call, and Firestore
+    //  allows 10 per single-document write, which is why an order may hold at
+    //  most 10 different lines.
+    //
+    //  SYNTAX NOTE: every function in this file is a single return
+    //  expression. Firestore rules require a braced block after if(...), so a
+    //  one line "if (x) return y;" does not compile. get() is also called
+    //  exactly once here: repeating it inside the expression would multiply
+    //  the document reads and push a full cart over the 10 get() limit.
+    // =====================================================================
+
+    // lineTotal must equal
+    //     complete bundles x deal_price  +  leftover pieces x price
+    // Firestore Rules cannot divide, so both sides are multiplied by deal_qty,
+    // which is the same equality written with multiplication only:
+    //     lineTotal * deal_qty
+    //        == (qty - qty % deal_qty) * deal_price
+    //           + (qty % deal_qty) * price * deal_qty
+    // Checked against the item's OWN copied deal, so an old order stays valid
+    // even after the product price changes.
+    function validLineTotal(it) {
+      return (it.dealQty == 0 && it.dealPrice == 0 && it.lineTotal == it.price * it.qty)
+          || (it.dealQty >= 2 && it.dealPrice > 0
+              && it.lineTotal * it.dealQty == (it.qty - it.qty % it.dealQty) * it.dealPrice
+                                      + (it.qty % it.dealQty) * it.price * it.dealQty);
+    }
+
+    // snap is the single get() result. Short circuit && means snap.data is
+    // never touched when the product was deleted (snap == null).
+    function liveProductMatches(it, snap) {
+      return snap != null
+          && intOr(snap.data, 'price', -1) == it.price
+          && liveDealQty(snap.data) == it.dealQty
+          && liveDealPrice(snap.data) == it.dealPrice
+          && validLineTotal(it);
+    }
+
+    function itemPriceIsLive(it) {
+      return liveProductMatches(it, get(/databases/$(database)/documents/products/$(it.id)));
+    }
+
+    function validItem(it) {
+      return it is map
+          && it.keys().hasOnly(['id', 'name', 'price', 'qty', 'dealQty', 'dealPrice', 'lineTotal'])
+          && it.keys().hasAll(['id', 'name', 'price', 'qty', 'dealQty', 'dealPrice', 'lineTotal'])
+          && isText(it.id, 1, 80)
+          && it.id.matches('^[A-Za-z0-9_-]+$')      // safe as a document id in a get() path
+          && isText(it.name, 1, 160)
+          && it.price is int && it.price >= 0 && it.price <= 100000
+          && it.qty is int && it.qty >= 1 && it.qty <= 20
+          && it.dealQty is int && it.dealQty >= 0 && it.dealQty <= 20
+          && it.dealPrice is int && it.dealPrice >= 0 && it.dealPrice <= 1000000
+          && it.lineTotal is int && it.lineTotal >= 0 && it.lineTotal <= 2000000
+          && itemPriceIsLive(it);
+    }
+
+    // i >= items.size() must come FIRST and mean "nothing to check here".
+    // Written the other way round (i < items.size() && validItem(...)) an index
+    // past the end of a short cart returns false, and because these are joined
+    // with && one short cart made validItems() fail and every order was refused.
+    function validItemAt(items, i) {
+      return i >= items.size() || validItem(items[i]);
+    }
+
+    function validItems(items) {
+      return items is list
+          && items.size() >= 1
+          && items.size() <= 10                    // 10 = Firestore get() call limit per write
+          && validItemAt(items, 0)
+          && validItemAt(items, 1)
+          && validItemAt(items, 2)
+          && validItemAt(items, 3)
+          && validItemAt(items, 4)
+          && validItemAt(items, 5)
+          && validItemAt(items, 6)
+          && validItemAt(items, 7)
+          && validItemAt(items, 8)
+          && validItemAt(items, 9);
+    }
+
+    // =====================================================================
+    //  CUSTOMER DETAILS
+    // =====================================================================
+    function validCustomer(c) {
+      return c is map
+          && c.keys().hasOnly(['name', 'phone', 'district', 'area', 'address', 'note'])
+          && c.keys().hasAll(['name', 'phone', 'district', 'area', 'address', 'note'])
+          && isText(c.name, 2, 100)
+          && isPhone(c.phone)
+          && isText(c.district, 2, 60)
+          && isText(c.area, 0, 80)
+          && isText(c.address, 8, 400)
+          && isText(c.note, 0, 300);
+    }
+
+    // =====================================================================
+    //  DELIVERY ZONE - the delivery charge is decided here, never by the browser
+    // =====================================================================
+    // Inside Dhaka City: cash on delivery, 80 taka, no bKash block.
+    function validInsideDhaka(o) {
+      return o.zone == 'inside'
+          && o.customer.district == 'Dhaka City'
+          && o.paymentMethod == 'cod'
+          && o.get('courier', '') == ''
+          && o.deliveryCharge == 80
+          && !o.keys().hasAny(['bkash']);
+    }
+
+    // Outside Dhaka: full bKash payment, 150 taka, courier, TrxID + sender number.
+    function validOutsideDhaka(o) {
+      return o.zone == 'outside'
+          && o.paymentMethod == 'bkash'
+          && isText(o.get('courier', ''), 2, 40)
+          && o.deliveryCharge == 150
+          && o.bkash is map
+          && o.bkash.keys().hasOnly(['trxId', 'senderNumber'])
+          && o.bkash.keys().hasAll(['trxId', 'senderNumber'])
+          && isText(o.bkash.trxId, 6, 30)
+          && isPhone(o.bkash.senderNumber);
+    }
+
+    function validZone(o) {
+      return (o.zone == 'inside' && validInsideDhaka(o))
+          || (o.zone == 'outside' && validOutsideDhaka(o));
+    }
+
+    // =====================================================================
+    //  THE WHOLE CUSTOMER ORDER
+    // =====================================================================
+    function validOrder(o) {
+      return o.keys().hasOnly(['orderNo', 'createdAt', 'status', 'paymentStatus', 'zone',
+                               'paymentMethod', 'courier', 'customer', 'items',
+                               'subtotal', 'deliveryCharge', 'total', 'source', 'bkash'])
+          && o.keys().hasAll(['orderNo', 'createdAt', 'status', 'paymentStatus', 'zone',
+                              'paymentMethod', 'courier', 'customer', 'items',
+                              'subtotal', 'deliveryCharge', 'total', 'source'])
+          // identity and first state
+          && o.orderNo is string && o.orderNo.matches('^BF[0-9]{6}-[0-9A-Z]{4}$')
+          && o.createdAt == request.time                 // must be serverTimestamp()
+          && o.status == 'pending'
+          && o.paymentStatus == 'unpaid'
+          && o.source == 'website'
+          // money
+          && o.paymentMethod in ['cod', 'bkash']
+          && isText(o.get('courier', ''), 0, 40)
+          && o.subtotal is int && o.subtotal >= 0 && o.subtotal <= 500000
+          && o.deliveryCharge is int
+          && o.total is int && o.total > 0 && o.total <= 500000
+          && o.total == o.subtotal + o.deliveryCharge
+          // a one line order is fully cross checked
+          && (o.items.size() != 1 || o.subtotal == o.items[0].lineTotal)
+          // contents
+          && validCustomer(o.customer)
+          && validItems(o.items)
+          // delivery + payment rules for the zone
+          && validZone(o);
+    }
+
+    // =====================================================================
+    //  ADMIN ORDER EDITS
+    //  Only status, payment status, tracking, private note and the stock flag
+    //  may move. Money, items and customer details are frozen so an accidental
+    //  save can never rewrite what was ordered.
+    //  stockAdjusted must always agree with the new status, so the flag can
+    //  never drift away from the real stock state.
+    // =====================================================================
+    function validAdminOrderUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'paymentStatus', 'trackingNo', 'adminNote',
+                         'updatedAt', 'stockAdjusted'])
+          && request.resource.data.orderNo == resource.data.orderNo
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.source == resource.data.source
+          && request.resource.data.zone == resource.data.zone
+          && request.resource.data.paymentMethod == resource.data.paymentMethod
+          && request.resource.data.courier == resource.data.courier
+          && request.resource.data.customer == resource.data.customer
+          && request.resource.data.items == resource.data.items
+          && request.resource.data.subtotal == resource.data.subtotal
+          && request.resource.data.deliveryCharge == resource.data.deliveryCharge
+          && request.resource.data.total == resource.data.total
+          && request.resource.data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']
+          && request.resource.data.paymentStatus in ['unpaid', 'paid', 'refunded']
+          && request.resource.data.stockAdjusted
+             == (request.resource.data.status in ['confirmed', 'shipped', 'delivered']);
+    }
+
+    // =====================================================================
+    //  ORDERS
+    //  A visitor may create one valid order and nothing else.
+    //  Reading, changing and deleting are the admin's job, and deletion is
+    //  never allowed, so order history stays complete.
+    // =====================================================================
+    match /orders/{orderId} {
+      allow create: if orderId == request.resource.data.orderNo
+                 && validOrder(request.resource.data);
+      allow read: if isAdmin();
+      allow update: if isAdmin() && validAdminOrderUpdate();
       allow delete: if false;
     }
 
-    function validOrder(o) {
-      return o.keys().hasOnly(['orderNo','createdAt','status','paymentStatus','zone','paymentMethod','courier',
-                               'customer','items','subtotal','deliveryCharge','total','source','bkash'])
-        && o.keys().hasAll(['orderNo','createdAt','status','paymentStatus','zone','paymentMethod','customer','items','subtotal','deliveryCharge','total'])
-        && o.orderNo is string && o.orderNo.size() <= 20
-        && o.createdAt == request.time
-        && o.status == 'pending'
-        && o.paymentStatus == 'unpaid'
-        && o.zone in ['inside', 'outside']
-        && ((o.zone == 'inside' && o.paymentMethod == 'cod')
-            || (o.zone == 'outside' && o.paymentMethod == 'bkash' && o.bkash.trxId is string && o.bkash.trxId.size() >= 6 && o.bkash.trxId.size() <= 30))
-        && o.customer.name is string && o.customer.name.size() >= 2 && o.customer.name.size() <= 100
-        && o.customer.phone.matches('^01[3-9][0-9]{8}$')
-        && o.customer.address is string && o.customer.address.size() >= 8 && o.customer.address.size() <= 400
-        && o.customer.district is string && o.customer.district.size() <= 60
-        && o.items is list && o.items.size() > 0 && o.items.size() <= 30
-        && o.subtotal is number && o.deliveryCharge is number
-        && o.total is number && o.total > 0 && o.total < 500000
-        && o.total == o.subtotal + o.deliveryCharge;
+    // =====================================================================
+    //  EVERYTHING ELSE IN THE DATABASE IS CLOSED
+    // =====================================================================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
