@@ -102,8 +102,7 @@ document e onno field camelCase (`lineTotal`), product e snake_case
 | Delivery charge | ৳80 | ৳150 |
 | Courier | - | Sundarban Courier |
 
-- bKash number: **01974457055**
-- Messenger: <https://m.me/100027246954906>
+
 - Customer order er por Messenger e order text pathate pare, ar order admin panel eo ashe
 - Order **delete kora jay na**. Shudhu status change hoy (cancelled, delivered), tai history thake
 - Admin panel theke **Orders** tab e **"Download CSV backup"** button e shob order Excel/Sheets e nite paren
@@ -114,7 +113,7 @@ Ei gulo gulo kaj apnar Firebase account e korte hobe. Ami (AI) kono Firebase Con
 e login kore kono setting change korte parbo na, tai eta apnakei korte hobe.
 
 ### 1. Firebase project
-1. <https://console.firebase.google.com> e jan, **Add project** (naam: `beautyfashion-shop`).
+1. **Add project** (naam: `beautyfashion-shop`).
    Google Analytics lagbe na.
 2. **Build > Firestore Database > Create database** (production mode, location: `asia-south1`).
 3. **Build > Authentication > Get started > Sign-in method > Email/Password > Enable**.
